@@ -11,7 +11,8 @@ import Login from '@/pages/account/Login';
 import RequestPasswordReset from '@/pages/account/RequestPasswordReset';
 import ResetPassword from '@/pages/account/ResetPassword';
 import SignUp from '@/pages/account/SignUp';
-import Home from '@/pages/home/Home';
+import AdminDashboard from '@/pages/admin-dashboard/AdminDashboard';
+import FileUpload from '@/pages/file-upload/FileUpload';
 import NotFound from '@/pages/not-found/NotFound';
 import PublicView from '@/pages/public-view/PublicView';
 
@@ -25,8 +26,8 @@ export default function App() {
           <Route path='/' element={<PublicView />} />
           <Route path='/app' element={<NavLayout />}>
             <Route element={<PrivateRoute />}>
-              <Route index element={<Home />} />
-              <Route path='home' element={<Home />} />
+              <Route index element={<AdminDashboard />} />
+              <Route path='file-upload' element={<FileUpload />} />
             </Route>
             <Route element={<PublicOnlyRoute />}>
               <Route path='login' element={<Login />} />

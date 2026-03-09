@@ -1,85 +1,110 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 
 import styled from 'styled-components';
 
-import { Button } from '@/common/components/atoms/Button';
+import logoImg from '@/assets/icons/logo.png';
 import { useUser } from '@/common/contexts/UserContext';
 
 import LogoutModal from './LogoutModal';
 
 const StyledNav = styled.nav`
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: center;
-  padding: 1.25rem 2rem;
-  background-color: white;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  font-family: var(--font-agenda);
+  padding: 12px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e8e0c8;
+  min-height: 64px;
 `;
 
-const LogoLink = styled.button`
+const LogoArea = styled.button`
   background: none;
   border: none;
-  padding: 0;
   cursor: pointer;
-  justify-self: start;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 `;
 
 const LogoImg = styled.img`
-  height: 58px;
+  height: 52px;
   width: auto;
   display: block;
 `;
 
-const NavTitle = styled.span`
-  font-size: 1.35rem;
-  font-weight: 600;
-  color: var(--rsae-gold);
-  justify-self: center;
-`;
-
-const NavRight = styled.div`
+const NavLinks = styled.div`
   display: flex;
-  gap: 10px;
-  justify-self: end;
+  align-items: center;
+  gap: 36px;
+  flex: 1;
+  padding-left: 36px;
 `;
 
-const StaffLoginBtn = styled(Button.Secondary)`
-  padding: 10px 24px;
-  border-radius: 10px;
-  background-color: var(--rsae-light-blue) !important;
-  border-color: var(--rsae-light-blue) !important;
-  color: white !important;
-`;
+const StyledNavLink = styled(NavLink)`
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--gold);
+  text-transform: uppercase;
+  padding: 4px 0;
+  border-bottom: 2px solid transparent;
+  transition: border-color 0.15s;
 
-const PublicViewLink = styled.button`
-  background: none;
-  border: none;
-  padding: 8px 16px;
-  font-size: 1rem;
-  color: #4a5568;
-  cursor: pointer;
-  font-family: var(--font-agenda);
-  font-weight: 500;
-
+  &.active,
   &:hover {
-    color: var(--rsae-gold);
+    border-bottom-color: var(--gold);
   }
 `;
+
+const RightArea = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+`;
+
+const UserIconButton = styled.button`
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+`;
+
+const UserCircle = styled.div`
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #1a1a1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+function UserIcon() {
+  return (
+    <UserCircle>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="8" r="4" fill="white" />
+        <path
+          d="M4 20c0-4.418 3.582-8 8-8s8 3.582 8 8"
+          stroke="white"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          fill="none"
+        />
+      </svg>
+    </UserCircle>
+  );
+}
 
 export default function NavBar() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
   const { user, logout } = useUser();
-
-  const handleLogoutClick = () => {
-    setIsModalOpen(true);
-  };
-
-  const handleModalClose = () => {
-    setIsModalOpen(false);
-  };
 
   const handleLogoutConfirm = async () => {
     try {
@@ -93,30 +118,32 @@ export default function NavBar() {
 
   return (
     <StyledNav>
-      <LogoLink onClick={() => navigate('/')}>
-        <LogoImg src="/rsae-logo.png" alt="RSAE" />
-      </LogoLink>
-      <NavTitle>Staff Portal</NavTitle>
-      <NavRight>
-        <PublicViewLink onClick={() => navigate('/')}>
-          Public View
-        </PublicViewLink>
-        {user ? (
-          <Button.Secondary onClick={handleLogoutClick}>Log Out</Button.Secondary>
-        ) : (
-          <>
-            <Button.Primary onClick={() => navigate('/app/signup')}>
-              Sign Up
-            </Button.Primary>
-            <StaffLoginBtn onClick={() => navigate('/app/login')}>
-              Login
-            </StaffLoginBtn>
-          </>
-        )}
-      </NavRight>
+      <LogoArea onClick={() => navigate('/')}>
+        <LogoImg
+          src={logoImg}
+          alt="Reparations Stakeholders Authority Evanston"
+        />
+      </LogoArea>
+
+      <NavLinks>
+        <StyledNavLink to="/app" end>
+          Admin Dashboard
+        </StyledNavLink>
+        <StyledNavLink to="/app/file-upload">File Upload</StyledNavLink>
+      </NavLinks>
+
+      <RightArea>
+        <UserIconButton
+          onClick={() => user && setIsModalOpen(true)}
+          aria-label={user ? 'Account menu' : 'Account'}
+        >
+          <UserIcon />
+        </UserIconButton>
+      </RightArea>
+
       <LogoutModal
         isOpen={isModalOpen}
-        onClose={handleModalClose}
+        onClose={() => setIsModalOpen(false)}
         onLogout={handleLogoutConfirm}
       />
     </StyledNav>
