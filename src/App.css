@@ -5,6 +5,7 @@
   --darkgrey: #747474;
   --white: #fff;
   --text: #191a23;
+
   /* Public View / RSAE branding */
   --rsae-gold: rgb(154, 131, 72);
   --rsae-gold-hex: #9a8348;
@@ -14,6 +15,17 @@
   --rsae-cream: #f0ebe3;
   --font-agenda: 'Agenda', 'Agenda One', 'Barlow Condensed', -apple-system,
     sans-serif;
+
+  /* Admin Dashboard gold/olive palette */
+  --gold: #8b7a30;
+  --gold-dark: #6b5c20;
+  --gold-border: #b89830;
+  --gold-light-bg: #faf8f0;
+
+  /* Action button colors */
+  --btn-new-entry: #4caf50;
+  --btn-edit: #5b9bd5;
+  --btn-delete: #e53935;
 }
 
 * {
