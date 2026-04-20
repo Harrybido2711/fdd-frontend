@@ -7,6 +7,7 @@ import logoImg from '@/assets/icons/logo.png';
 import { useUser } from '@/common/contexts/UserContext';
 
 import LogoutModal from './LogoutModal';
+import StaffLoginModal from './StaffLoginModal';
 
 const StyledNav = styled.nav`
   display: flex;
@@ -58,6 +59,22 @@ const StyledNavLink = styled(NavLink)`
   }
 `;
 
+const FundEntriesAnchor = styled.a`
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--gold);
+  text-transform: uppercase;
+  padding: 4px 0;
+  border-bottom: 2px solid transparent;
+  transition: border-color 0.15s;
+
+  &:hover {
+    border-bottom-color: var(--gold);
+  }
+`;
+
 const RightArea = styled.div`
   display: flex;
   align-items: center;
@@ -103,6 +120,7 @@ function UserIcon() {
 
 export default function NavBar() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
   const navigate = useNavigate();
   const { user, logout } = useUser();
 
@@ -126,16 +144,20 @@ export default function NavBar() {
       </LogoArea>
 
       <NavLinks>
-        <StyledNavLink to="/app" end>
-          Admin Dashboard
+        <StyledNavLink to="/" end>
+          Dashboard
         </StyledNavLink>
+        <FundEntriesAnchor href="/#staff-admin">Fund entries</FundEntriesAnchor>
         <StyledNavLink to="/app/file-upload">File Upload</StyledNavLink>
       </NavLinks>
 
       <RightArea>
         <UserIconButton
-          onClick={() => user && setIsModalOpen(true)}
-          aria-label={user ? 'Account menu' : 'Account'}
+          onClick={() => {
+            if (user) setIsModalOpen(true);
+            else setIsLoginOpen(true);
+          }}
+          aria-label={user ? 'Account menu' : 'Login'}
         >
           <UserIcon />
         </UserIconButton>
@@ -145,6 +167,14 @@ export default function NavBar() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onLogout={handleLogoutConfirm}
+      />
+      <StaffLoginModal
+        isOpen={isLoginOpen}
+        onClose={() => setIsLoginOpen(false)}
+        onShowForgotPassword={() => {
+          setIsLoginOpen(false);
+          navigate('/app/forgot-password');
+        }}
       />
     </StyledNav>
   );

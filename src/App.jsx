@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import {
   PrivateRoute,
@@ -7,11 +7,9 @@ import {
 import { UserProvider } from '@/common/contexts/UserContext';
 import NavLayout from '@/common/layouts/NavLayout';
 import AuthCallback from '@/pages/account/AuthCallback';
-import Login from '@/pages/account/Login';
 import RequestPasswordReset from '@/pages/account/RequestPasswordReset';
 import ResetPassword from '@/pages/account/ResetPassword';
 import SignUp from '@/pages/account/SignUp';
-import AdminDashboard from '@/pages/admin-dashboard/AdminDashboard';
 import FileUpload from '@/pages/file-upload/FileUpload';
 import NotFound from '@/pages/not-found/NotFound';
 import PublicView from '@/pages/public-view/PublicView';
@@ -25,12 +23,11 @@ export default function App() {
         <Routes>
           <Route path='/' element={<PublicView />} />
           <Route path='/app' element={<NavLayout />}>
+            <Route index element={<Navigate to='/' replace />} />
             <Route element={<PrivateRoute />}>
-              <Route index element={<AdminDashboard />} />
               <Route path='file-upload' element={<FileUpload />} />
             </Route>
             <Route element={<PublicOnlyRoute />}>
-              <Route path='login' element={<Login />} />
               <Route path='signup' element={<SignUp />} />
               <Route
                 path='forgot-password'

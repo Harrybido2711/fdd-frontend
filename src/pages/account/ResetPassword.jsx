@@ -123,7 +123,7 @@ export default function ResetPassword() {
 
     try {
       await confirmPasswordReset(auth, oobCode, password);
-      navigate('/app/login', {
+      navigate('/', {
         state: {
           message:
             'Password reset successfully. Please log in with your new password.',

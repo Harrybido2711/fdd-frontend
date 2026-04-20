@@ -20,11 +20,19 @@ export const RedSpan = styled.span`
 
 export const StyledInput = styled.input`
   font-size: 1rem;
-  padding: 8px;
-  border: solid 2px var(--text);
-  border-radius: 8px;
+  padding: 14px 16px;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  border-radius: 16px;
   width: 100%;
   box-sizing: border-box;
+  background: #ffffff;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+
+  &:focus {
+    outline: none;
+    border-color: rgba(59, 130, 246, 0.75);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+  }
 `;
 
 export const PasswordContainer = styled.div`

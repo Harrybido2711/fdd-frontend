@@ -91,16 +91,21 @@ export function UserProvider({ children }) {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const idToken = await result.user.getIdToken();
-
-      await fetch(buildUrl('/auth/token'), {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
-      });
+      try {
+        await fetch(buildUrl('/auth/token'), {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken }),
+        });
+      } catch (err) {
+        // If the backend isn't running (or CORS blocks it), still allow Firebase login
+        // so the UI can proceed in dev.
+        console.warn('Backend /auth/token sync failed:', err);
+      }
     } catch (error) {
       console.error('Google auth error:', error);
-      throw new Error('Failed to complete Google authentication');
+      throw error;
     }
   };
 

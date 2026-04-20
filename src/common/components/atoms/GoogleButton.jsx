@@ -10,50 +10,56 @@ const StyledButton = styled.button`
   align-items: center;
   gap: 8px;
   background-color: white;
-  border: 1px solid #e2e2e2;
-  border-radius: 4px;
-  padding: 8px 16px;
-  color: #5f6368;
-  font-size: 14px;
+  border: none;
+  border-radius: 16px;
+  padding: 16px 18px;
+  color: #0f172a;
+  font-size: 1.05rem;
+  font-weight: 550;
   cursor: pointer;
-  transition: background-color 0.2s;
+  box-shadow: 0 10px 24px rgba(31, 41, 55, 0.12);
+  transition: transform 0.05s ease, opacity 0.15s ease;
 
   &:hover {
-    background-color: #f8f9fa;
+    opacity: 0.95;
   }
 
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 2px #e8e8e8;
+    box-shadow: 0 0 0 3px rgba(154, 131, 72, 0.25);
   }
 
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
+
+  &:active {
+    transform: translateY(1px);
+  }
 `;
 
 const Divider = styled.div`
-  position: relative;
-  margin: 24px 0;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 16px;
 
-  &::before {
+  &::before,
+  &::after {
     content: '';
-    position: absolute;
-    top: 50%;
-    left: 0;
-    right: 0;
     height: 1px;
-    background-color: #e2e2e2;
+    background-color: rgba(15, 23, 42, 0.12);
+    flex: 1;
   }
 
   span {
-    position: relative;
-    background-color: white;
-    padding: 0 12px;
-    color: #666;
-    font-size: 14px;
+    padding: 0 2px;
+    color: var(--rsae-gold);
+    font-size: 0.9rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
   }
 `;
 
@@ -65,7 +71,7 @@ export default function GoogleButton({
   return (
     <>
       <Divider>
-        <span>Or continue with</span>
+        <span>OR</span>
       </Divider>
       <StyledButton type='button' onClick={onClick} disabled={isLoading}>
         <svg width='18' height='18' viewBox='0 0 24 24'>

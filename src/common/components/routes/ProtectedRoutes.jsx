@@ -9,7 +9,7 @@ export function PrivateRoute() {
     return <div>Loading...</div>;
   }
 
-  return user ? <Outlet /> : <Navigate to='/app/login' replace />;
+  return user ? <Outlet /> : <Navigate to='/' replace />;
 }
 
 export function PublicOnlyRoute() {
@@ -19,5 +19,5 @@ export function PublicOnlyRoute() {
     return <div>Loading...</div>;
   }
 
-  return !user ? <Outlet /> : <Navigate to='/app' replace />;
+  return !user ? <Outlet /> : <Navigate to='/' replace />;
 }

@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 
+import GoogleButton from '@/common/components/atoms/GoogleButton';
 import { useUser } from '@/common/contexts/UserContext';
 
 const ModalOverlay = styled.div`
@@ -26,6 +27,28 @@ const ModalContent = styled.div`
   max-width: 380px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   font-family: var(--font-agenda);
+  position: relative;
+`;
+
+const CloseButton = styled.button`
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(15, 23, 42, 0.08);
+  color: #111827;
+  font-size: 1.25rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: rgba(15, 23, 42, 0.16);
+  }
 `;
 
 const Title = styled.h2`
@@ -34,6 +57,15 @@ const Title = styled.h2`
   font-weight: 600;
   color: var(--rsae-gold);
   text-align: center;
+  font-family: var(--font-agenda);
+`;
+
+const InputLabel = styled.label`
+  display: block;
+  margin-bottom: 8px;
+  color: #1f2937;
+  font-size: 1.1rem;
+  font-weight: 700;
   font-family: var(--font-agenda);
 `;
 
@@ -70,10 +102,10 @@ const LoginButton = styled.button`
   padding: 12px 24px;
   border: none;
   border-radius: 10px;
-  background-color: var(--primary-green);
+  background-color: var(--rsae-gold);
   color: white;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.1rem;
+  font-weight: 800;
   cursor: pointer;
   font-family: var(--font-agenda);
   transition: opacity 0.2s;
@@ -92,10 +124,10 @@ const ForgotButton = styled.button`
   padding: 12px 24px;
   border: none;
   border-radius: 10px;
-  background-color: var(--rsae-light-blue);
+  background-color: var(--primary-green);
   color: white;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.1rem;
+  font-weight: 800;
   cursor: pointer;
   font-family: var(--font-agenda);
   transition: opacity 0.2s;
@@ -124,9 +156,24 @@ function mapAuthCodeToMessage(authCode) {
   }
 }
 
+function mapGoogleAuthError(error) {
+  const code = error?.code;
+  switch (code) {
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+      return 'Sign-in was cancelled.';
+    case 'auth/popup-blocked':
+      return 'The pop-up was blocked. Allow pop-ups for this site and try again.';
+    case 'auth/account-exists-with-different-credential':
+      return 'An account already exists with this email using a different sign-in method.';
+    default:
+      return error?.message || 'Failed to sign in with Google.';
+  }
+}
+
 export default function StaffLoginModal({ isOpen, onClose, onShowForgotPassword }) {
   const navigate = useNavigate();
-  const { login } = useUser();
+  const { login, googleAuth } = useUser();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -142,7 +189,7 @@ export default function StaffLoginModal({ isOpen, onClose, onShowForgotPassword 
     try {
       await login(email, password);
       onClose();
-      navigate('/app', { replace: true });
+      navigate('/', { replace: true, state: { scrollToAdmin: true } });
     } catch (err) {
       setError(mapAuthCodeToMessage(err.code));
     } finally {
@@ -155,15 +202,38 @@ export default function StaffLoginModal({ isOpen, onClose, onShowForgotPassword 
     onShowForgotPassword?.();
   };
 
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      await googleAuth();
+      onClose();
+      navigate('/', { replace: true, state: { scrollToAdmin: true } });
+    } catch (err) {
+      setError(mapGoogleAuthError(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <ModalOverlay onClick={onClose}>
       <ModalContent onClick={(e) => e.stopPropagation()}>
+        <CloseButton
+          type="button"
+          onClick={onClose}
+          aria-label="Close login dialog"
+        >
+          ×
+        </CloseButton>
         <Title>Login</Title>
         <form onSubmit={handleSubmit}>
           {error && <ErrorText>{error}</ErrorText>}
+          <InputLabel htmlFor="login-email">Email address</InputLabel>
           <InputField
+            id="login-email"
             type="email"
-            placeholder="Email"
+            placeholder="name@company.com"
             value={email}
             onChange={(e) => {
               setEmail(e.target.value);
@@ -171,9 +241,11 @@ export default function StaffLoginModal({ isOpen, onClose, onShowForgotPassword 
             }}
             required
           />
+          <InputLabel htmlFor="login-password">Password</InputLabel>
           <InputField
+            id="login-password"
             type="password"
-            placeholder="Password"
+            placeholder="Enter your password"
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
@@ -190,6 +262,11 @@ export default function StaffLoginModal({ isOpen, onClose, onShowForgotPassword 
             </ForgotButton>
           </ButtonGroup>
         </form>
+        <GoogleButton
+          onClick={handleGoogleLogin}
+          isLoading={isLoading}
+          text="Sign in with Google"
+        />
       </ModalContent>
     </ModalOverlay>
   );

@@ -86,7 +86,7 @@ export default function SignUp() {
       if (!response.ok) {
         throw new Error(data.error || 'Failed to create account');
       }
-      navigate('/login', {
+      navigate('/', {
         state: {
           message:
             'Account created successfully! Please check your email to verify your account.',
