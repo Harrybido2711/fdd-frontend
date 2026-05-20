@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 
+import { buildApiUrl, enrichFetchError } from '@/common/utils/apiUrl';
 import { auth, googleProvider } from '@/firebase-config';
 import {
   onAuthStateChanged,
@@ -23,10 +24,13 @@ UserProvider.propTypes = {
   children: PropTypes.node.isRequired,
 };
 
-const buildUrl = (endpoint) => {
-  const base = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5050';
-  return `${String(base).replace(/\/$/, '')}${endpoint}`;
-};
+async function apiFetch(url, options) {
+  try {
+    return await fetch(url, options);
+  } catch (err) {
+    throw new Error(enrichFetchError(err.message || 'Failed to fetch'));
+  }
+}
 
 export function UserProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -41,7 +45,7 @@ export function UserProvider({ children }) {
       if (firebaseUser) {
         try {
           const idToken = await firebaseUser.getIdToken();
-          const response = await fetch(buildUrl('/auth/profile'), {
+          const response = await apiFetch(buildApiUrl('/auth/profile'), {
             headers: { Authorization: `Bearer ${idToken}` },
           });
 
@@ -92,7 +96,7 @@ export function UserProvider({ children }) {
       const result = await signInWithPopup(auth, googleProvider);
       const idToken = await result.user.getIdToken();
       try {
-        await fetch(buildUrl('/auth/token'), {
+        await apiFetch(buildApiUrl('/auth/token'), {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },

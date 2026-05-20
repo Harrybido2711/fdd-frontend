@@ -1,6 +1,23 @@
 import PropTypes from 'prop-types';
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
+
+import {
+  createDonation,
+  deleteDonation,
+  fetchDonations,
+  formatDonationDate,
+  updateDonation,
+  uploadDonationsCsv,
+} from '@/common/api/donationsApi';
+import {
+  exportDonationsCsv,
+  filterByDateRange,
+} from '@/common/utils/donationsUtils';
+
+import DateFilterModal from './DateFilterModal';
+import DeleteEntryModal from './DeleteEntryModal';
+import EntryFormModal from './EntryFormModal';
 
 const PageWrapper = styled.div`
   flex: 1;
@@ -99,12 +116,17 @@ const ActionBtn = styled.button`
   letter-spacing: 0.01em;
   transition: transform 0.05s ease, opacity 0.15s ease;
 
-  &:hover {
+  &:hover:not(:disabled) {
     opacity: 0.88;
   }
 
-  &:active {
+  &:active:not(:disabled) {
     transform: translateY(1px);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 `;
 
@@ -120,18 +142,27 @@ const DeleteBtn = styled(ActionBtn)`
   background: #dc2626;
 `;
 
-const FileUploadBtn = styled(ActionBtn)`
+const ImportBtn = styled(ActionBtn)`
   background: #0f766e;
+`;
+
+const ExportBtn = styled(ActionBtn)`
+  background: #7c3aed;
+`;
+
+const DateFilterBtnActive = styled(DateFilterBtn)`
+  box-shadow: 0 0 0 3px rgba(154, 131, 72, 0.35);
 `;
 
 const TableWrapper = styled.div`
   width: 100%;
+  overflow-x: auto;
 `;
 
 const Table = styled.table`
   border-collapse: collapse;
   width: 100%;
-  min-width: 680px;
+  min-width: 820px;
   background: #fff;
   border-radius: 14px;
   overflow: hidden;
@@ -179,23 +210,16 @@ const Td = styled.td`
   text-align: left;
 `;
 
-const MOCK_DATA = [
-  { date: '1/13', fund: 'Fund A', amount: 50, city: 'Evanston', state: 'IL' },
-  { date: '1/13', fund: 'Fund B', amount: 100, city: 'Evanston', state: 'IL' },
-  { date: '1/14', fund: 'Fund C', amount: 20, city: 'Milwaukee', state: 'WI' },
-  { date: '1/15', fund: 'Fund D', amount: 40, city: 'Evanston', state: 'IL' },
-  { date: '1/16', fund: 'Fund E', amount: 75, city: 'Chicago', state: 'IL' },
-  { date: '1/16', fund: 'Fund F', amount: 120, city: 'Evanston', state: 'IL' },
-  { date: '1/17', fund: 'Fund G', amount: 35, city: 'Oak Park', state: 'IL' },
-  { date: '1/18', fund: 'Fund H', amount: 200, city: 'Madison', state: 'WI' },
-  { date: '1/18', fund: 'Fund I', amount: 55, city: 'Minneapolis', state: 'MN' },
-  { date: '1/19', fund: 'Fund J', amount: 90, city: 'Houston', state: 'TX' },
-  { date: '1/19', fund: 'Fund K', amount: 18, city: 'Birmingham', state: 'AL' },
-  { date: '1/20', fund: 'Fund L', amount: 140, city: 'Charlotte', state: 'NC' },
-  { date: '1/20', fund: 'Fund M', amount: 62, city: 'Columbia', state: 'SC' },
-  { date: '1/21', fund: 'Fund N', amount: 110, city: 'Evanston', state: 'IL' },
-  { date: '1/22', fund: 'Fund O', amount: 45, city: 'St. Paul', state: 'MN' },
-];
+const DataRow = styled.tr`
+  cursor: pointer;
+  background: ${({ $selected }) =>
+    $selected ? 'rgba(154, 131, 72, 0.14)' : 'transparent'};
+
+  &:hover {
+    background: ${({ $selected }) =>
+      $selected ? 'rgba(154, 131, 72, 0.18)' : 'rgba(15, 23, 42, 0.03)'};
+  }
+`;
 
 const UploadHint = styled.div`
   margin-left: 10px;
@@ -204,31 +228,148 @@ const UploadHint = styled.div`
   font-size: 0.9rem;
 `;
 
+const StatusBanner = styled.div`
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  background: ${({ $variant }) =>
+    $variant === 'error' ? '#fef2f2' : '#f0fdf4'};
+  color: ${({ $variant }) => ($variant === 'error' ? '#b91c1c' : '#166534')};
+  border: 1px solid
+    ${({ $variant }) =>
+      $variant === 'error' ? '#fecaca' : '#bbf7d0'};
+`;
+
+const EmptyCell = styled.td`
+  padding: 24px 18px;
+  text-align: center;
+  color: #64748b;
+  font-weight: 700;
+`;
+
+const SORT_KEYS = [
+  'donated_at',
+  'fund',
+  'amount',
+  'category',
+  'city',
+  'state',
+];
+
+const COLUMN_LABELS = {
+  donated_at: 'Date',
+  fund: 'Fund',
+  amount: 'Amount',
+  category: 'Category',
+  city: 'City',
+  state: 'State',
+};
+
 export default function AdminDashboard({ embedded = false }) {
   const fileInputRef = useRef(null);
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [selectedId, setSelectedId] = useState(null);
   const [selectedFileName, setSelectedFileName] = useState('');
+  const [uploading, setUploading] = useState(false);
   const [query, setQuery] = useState('');
-  const [sortKey, setSortKey] = useState('date');
-  const [sortDir, setSortDir] = useState('asc'); // 'asc' | 'desc'
+  const [sortKey, setSortKey] = useState('donated_at');
+  const [sortDir, setSortDir] = useState('asc');
+  const [formModal, setFormModal] = useState(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [dateFilterOpen, setDateFilterOpen] = useState(false);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  const loadEntries = useCallback(async () => {
+    setError('');
+    try {
+      const data = await fetchDonations();
+      setEntries(data);
+      setSelectedId((prev) =>
+        prev != null && data.some((row) => row.id === prev) ? prev : null
+      );
+    } catch (err) {
+      setError(err.message || 'Failed to load entries.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadEntries();
+  }, [loadEntries]);
+
+  const selectedEntry = entries.find((row) => row.id === selectedId) ?? null;
 
   const openFilePicker = () => {
     fileInputRef.current?.click();
   };
 
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setSelectedFileName(file.name);
+    setUploading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const result = await uploadDonationsCsv(file);
+      setSuccess(
+        `Imported ${result.inserted ?? 0} new entries from ${file.name}.`
+      );
+      await loadEntries();
+    } catch (err) {
+      setError(err.message || 'File upload failed.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const normalizedQuery = query.trim().toLowerCase();
+  const dateFiltered = filterByDateRange(entries, dateFrom, dateTo);
 
   const filtered = normalizedQuery
-    ? MOCK_DATA.filter((row) => {
-        const haystack = `${row.date} ${row.fund} ${row.amount} ${row.city} ${row.state}`.toLowerCase();
+    ? dateFiltered.filter((row) => {
+        const haystack = [
+          formatDonationDate(row.donated_at),
+          row.fund,
+          row.amount,
+          row.category,
+          row.city,
+          row.state,
+        ]
+          .join(' ')
+          .toLowerCase();
         return haystack.includes(normalizedQuery);
       })
-    : MOCK_DATA;
+    : dateFiltered;
+
+  const dateFilterActive = Boolean(dateFrom || dateTo);
+
+  const handleExport = () => {
+    if (!filtered.length) {
+      setError('No entries to export for the current filters.');
+      setSuccess('');
+      return;
+    }
+    exportDonationsCsv(filtered);
+    setSuccess(`Exported ${filtered.length} entries.`);
+    setError('');
+  };
 
   const parseDateKey = (d) => {
-    // Treat as M/D (assume same year). We just need stable ordering for mock data.
-    const [m, day] = String(d).split('/').map((x) => Number(x));
-    if (!Number.isFinite(m) || !Number.isFinite(day)) return 0;
-    return m * 100 + day;
+    if (!d) return 0;
+    const t = new Date(d).getTime();
+    return Number.isFinite(t) ? t : 0;
   };
 
   const compare = (a, b) => {
@@ -238,7 +379,7 @@ export default function AdminDashboard({ embedded = false }) {
     if (sortKey === 'amount') {
       av = Number(av) || 0;
       bv = Number(bv) || 0;
-    } else if (sortKey === 'date') {
+    } else if (sortKey === 'donated_at') {
       av = parseDateKey(av);
       bv = parseDateKey(bv);
     } else {
@@ -262,26 +403,95 @@ export default function AdminDashboard({ embedded = false }) {
     setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
   };
 
+  const handleSaveEntry = async (payload) => {
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      if (formModal === 'create') {
+        await createDonation(payload);
+        setSuccess('Entry created.');
+      } else if (selectedId != null) {
+        await updateDonation(selectedId, payload);
+        setSuccess('Entry updated.');
+      }
+      setFormModal(null);
+      await loadEntries();
+    } catch (err) {
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (selectedId == null) return;
+    setDeleting(true);
+    setError('');
+    setSuccess('');
+    try {
+      await deleteDonation(selectedId);
+      setSuccess('Entry deleted.');
+      setDeleteModalOpen(false);
+      setSelectedId(null);
+      await loadEntries();
+    } catch (err) {
+      setError(err.message || 'Failed to delete entry.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const entryLabel = selectedEntry
+    ? `${formatDonationDate(selectedEntry.donated_at)} — ${selectedEntry.fund || 'Fund'} ($${selectedEntry.amount})`
+    : '';
+
   const body = (
     <>
+      {error ? <StatusBanner $variant="error">{error}</StatusBanner> : null}
+      {success ? <StatusBanner $variant="success">{success}</StatusBanner> : null}
+
       <ToolBar>
         <ToolBarLeft>
-          <DateFilterBtn>Date Filter</DateFilterBtn>
-          <FileUploadBtn
+          {dateFilterActive ? (
+            <DateFilterBtnActive
+              type="button"
+              onClick={() => setDateFilterOpen(true)}
+              title="Edit date filter"
+            >
+              Date Filter
+            </DateFilterBtnActive>
+          ) : (
+            <DateFilterBtn
+              type="button"
+              onClick={() => setDateFilterOpen(true)}
+              title="Filter entries by date"
+            >
+              Date Filter
+            </DateFilterBtn>
+          )}
+          <ImportBtn
             type="button"
             onClick={openFilePicker}
-            title="Upload a file"
+            disabled={uploading || loading}
+            title="Import entries from a CSV file"
           >
-            File Upload
-          </FileUploadBtn>
+            {uploading ? 'Importing…' : 'Import'}
+          </ImportBtn>
+          <ExportBtn
+            type="button"
+            onClick={handleExport}
+            disabled={loading || filtered.length === 0}
+            title="Export filtered entries as CSV"
+          >
+            Export
+          </ExportBtn>
           <input
             ref={fileInputRef}
             type="file"
+            accept=".csv,text/csv"
             style={{ display: 'none' }}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              setSelectedFileName(file?.name || '');
-            }}
+            onChange={handleFileChange}
           />
           {selectedFileName ? (
             <UploadHint title={selectedFileName}>{selectedFileName}</UploadHint>
@@ -296,9 +506,35 @@ export default function AdminDashboard({ embedded = false }) {
           />
         </ToolBarCenter>
         <ToolBarRight>
-          <NewEntryBtn>New Entry</NewEntryBtn>
-          <EditBtn>Edit</EditBtn>
-          <DeleteBtn>Delete</DeleteBtn>
+          <NewEntryBtn
+            type="button"
+            onClick={() => setFormModal('create')}
+            disabled={loading}
+          >
+            New Entry
+          </NewEntryBtn>
+          <EditBtn
+            type="button"
+            onClick={() => setFormModal('edit')}
+            disabled={loading || selectedId == null}
+            title={
+              selectedId == null ? 'Select a row to edit' : 'Edit selected entry'
+            }
+          >
+            Edit
+          </EditBtn>
+          <DeleteBtn
+            type="button"
+            onClick={() => setDeleteModalOpen(true)}
+            disabled={loading || selectedId == null}
+            title={
+              selectedId == null
+                ? 'Select a row to delete'
+                : 'Delete selected entry'
+            }
+          >
+            Delete
+          </DeleteBtn>
         </ToolBarRight>
       </ToolBar>
 
@@ -306,115 +542,86 @@ export default function AdminDashboard({ embedded = false }) {
         <Table>
           <thead>
             <tr>
-                <Th>
+              {SORT_KEYS.map((key) => (
+                <Th key={key}>
                   <ThContent>
-                    Date
+                    {COLUMN_LABELS[key]}
                     <SortButton
                       type="button"
-                      aria-label="Toggle sort by date"
-                      $active={sortKey === 'date'}
-                      onClick={() => toggleSort('date')}
+                      aria-label={`Toggle sort by ${COLUMN_LABELS[key]}`}
+                      $active={sortKey === key}
+                      onClick={() => toggleSort(key)}
                       title={
-                        sortKey === 'date'
+                        sortKey === key
                           ? `Sorted ${sortDir}`
-                          : 'Sort by date'
+                          : `Sort by ${COLUMN_LABELS[key]}`
                       }
                     >
-                      {sortKey === 'date' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                      {sortKey === key ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
                     </SortButton>
                   </ThContent>
                 </Th>
-                <Th>
-                  <ThContent>
-                    Fund
-                    <SortButton
-                      type="button"
-                      aria-label="Toggle sort by fund"
-                      $active={sortKey === 'fund'}
-                      onClick={() => toggleSort('fund')}
-                      title={
-                        sortKey === 'fund'
-                          ? `Sorted ${sortDir}`
-                          : 'Sort by fund'
-                      }
-                    >
-                      {sortKey === 'fund' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
-                    </SortButton>
-                  </ThContent>
-                </Th>
-                <Th>
-                  <ThContent>
-                    Amount
-                    <SortButton
-                      type="button"
-                      aria-label="Toggle sort by amount"
-                      $active={sortKey === 'amount'}
-                      onClick={() => toggleSort('amount')}
-                      title={
-                        sortKey === 'amount'
-                          ? `Sorted ${sortDir}`
-                          : 'Sort by amount'
-                      }
-                    >
-                      {sortKey === 'amount'
-                        ? sortDir === 'asc'
-                          ? '▲'
-                          : '▼'
-                        : '↕'}
-                    </SortButton>
-                  </ThContent>
-                </Th>
-                <Th>
-                  <ThContent>
-                    City
-                    <SortButton
-                      type="button"
-                      aria-label="Toggle sort by city"
-                      $active={sortKey === 'city'}
-                      onClick={() => toggleSort('city')}
-                      title={
-                        sortKey === 'city'
-                          ? `Sorted ${sortDir}`
-                          : 'Sort by city'
-                      }
-                    >
-                      {sortKey === 'city' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
-                    </SortButton>
-                  </ThContent>
-                </Th>
-                <Th>
-                  <ThContent>
-                    State
-                    <SortButton
-                      type="button"
-                      aria-label="Toggle sort by state"
-                      $active={sortKey === 'state'}
-                      onClick={() => toggleSort('state')}
-                      title={
-                        sortKey === 'state'
-                          ? `Sorted ${sortDir}`
-                          : 'Sort by state'
-                      }
-                    >
-                      {sortKey === 'state' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
-                    </SortButton>
-                  </ThContent>
-                </Th>
+              ))}
             </tr>
           </thead>
           <tbody>
-              {rows.map((row, i) => (
-              <tr key={i}>
-                <Td>{row.date}</Td>
-                <Td>{row.fund}</Td>
-                <Td>{row.amount}</Td>
-                <Td>{row.city}</Td>
-                <Td>{row.state}</Td>
+            {loading ? (
+              <tr>
+                <EmptyCell colSpan={6}>Loading entries…</EmptyCell>
               </tr>
-            ))}
+            ) : rows.length === 0 ? (
+              <tr>
+                <EmptyCell colSpan={6}>
+                  No entries match your filters. Add one or import a CSV.
+                </EmptyCell>
+              </tr>
+            ) : (
+              rows.map((row) => (
+                <DataRow
+                  key={row.id}
+                  $selected={row.id === selectedId}
+                  onClick={() => setSelectedId(row.id)}
+                >
+                  <Td>{formatDonationDate(row.donated_at)}</Td>
+                  <Td>{row.fund ?? '—'}</Td>
+                  <Td>{row.amount}</Td>
+                  <Td>{row.category ?? '—'}</Td>
+                  <Td>{row.city ?? '—'}</Td>
+                  <Td>{row.state ?? '—'}</Td>
+                </DataRow>
+              ))
+            )}
           </tbody>
         </Table>
       </TableWrapper>
+
+      <EntryFormModal
+        isOpen={formModal != null}
+        mode={formModal === 'edit' ? 'edit' : 'create'}
+        entry={formModal === 'edit' ? selectedEntry : null}
+        saving={saving}
+        onClose={() => setFormModal(null)}
+        onSubmit={handleSaveEntry}
+      />
+
+      <DeleteEntryModal
+        isOpen={deleteModalOpen}
+        entryLabel={entryLabel}
+        deleting={deleting}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={handleDeleteConfirm}
+      />
+
+      <DateFilterModal
+        isOpen={dateFilterOpen}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onClose={() => setDateFilterOpen(false)}
+        onApply={(from, to) => {
+          setDateFrom(from);
+          setDateTo(to);
+        }}
+      />
     </>
   );
 

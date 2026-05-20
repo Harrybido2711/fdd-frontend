@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import styled from 'styled-components';
 
+import { buildApiUrl } from '@/common/utils/apiUrl';
 import { auth } from '@/firebase-config';
 
 const UsersContainer = styled.div`
@@ -59,7 +60,7 @@ export default function UsersList() {
       try {
         const token = await auth.currentUser?.getIdToken();
         const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/auth/users`,
+          buildApiUrl('/auth/users'),
           {
             credentials: 'include',
             headers: {

@@ -16,30 +16,12 @@ import {
   Cell,
 } from 'recharts';
 
+import { fetchDonations } from '@/common/api/donationsApi';
 import StaffLoginModal from '@/common/components/navigation/StaffLoginModal';
 import ForgotPasswordModal from '@/common/components/navigation/ForgotPasswordModal';
 import { useUser } from '@/common/contexts/UserContext';
+import { buildDashboardCharts } from '@/common/utils/donationsUtils';
 import AdminDashboard from '@/pages/admin-dashboard/AdminDashboard';
-
-const CategoryData = [
-  { name: 'Education', value: 20, fill: '#6b21a8' },
-  { name: 'Community Support', value: 72, fill: '#1d4ed8' },
-  { name: 'Legal', value: 28, fill: '#9a8348' },
-  { name: 'Operations', value: 45, fill: '#4a5568' },
-  { name: 'Special Projects', value: 60, fill: '#15803d' },
-];
-
-const StateData = [
-  { name: 'FL', value: 58.72, percent: 15.89, fill: '#4a5568' },
-  { name: 'TX', value: 33.2, percent: 9.3, fill: '#f4a0a0' },
-  { name: 'AL', value: 10.44, percent: 2.92, fill: '#1e3a5f' },
-  { name: 'NC', value: 91.06, percent: 25.5, fill: '#ffa500' },
-  { name: 'SC', value: 22, percent: 6.16, fill: '#2f4f4f' },
-  { name: 'IL', value: 78.84, percent: 22.08, fill: '#166534' },
-  { name: 'MN', value: 64.78, percent: 18.14, fill: '#9370db' },
-];
-
-const TOTAL_FUNDS = 852324;
 
 const PageWrapper = styled.div`
   min-height: 100vh;
@@ -302,6 +284,14 @@ const ProfileMenuSub = styled.div`
   white-space: nowrap;
 `;
 
+const DashboardStatus = styled.p`
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #64748b;
+  font-weight: 700;
+  margin: 0 0 1rem;
+`;
+
 const ProfileMenuButton = styled.button`
   width: 100%;
   border: 1px solid rgba(15, 23, 42, 0.12);
@@ -330,6 +320,9 @@ export default function PublicView() {
   const [forgotModalOpen, setForgotModalOpen] = useState(false);
   const [view, setView] = useState('entries'); // 'dashboard' | 'entries'
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [donations, setDonations] = useState([]);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState('');
 
   const handleStaffLoginClick = () => setLoginModalOpen(true);
   const handleShowForgotPassword = () => setForgotModalOpen(true);
@@ -357,6 +350,32 @@ export default function PublicView() {
       setProfileMenuOpen(false);
     }
   }, [isLoading, user]);
+
+  useEffect(() => {
+    if (view !== 'dashboard') return;
+
+    let cancelled = false;
+    const loadDashboard = async () => {
+      setDashboardLoading(true);
+      setDashboardError('');
+      try {
+        const rows = await fetchDonations();
+        if (!cancelled) setDonations(rows);
+      } catch (err) {
+        if (!cancelled) {
+          setDashboardError(err.message || 'Failed to load dashboard data.');
+          setDonations([]);
+        }
+      } finally {
+        if (!cancelled) setDashboardLoading(false);
+      }
+    };
+
+    loadDashboard();
+    return () => {
+      cancelled = true;
+    };
+  }, [view]);
 
   const displayName = useMemo(() => {
     const first = user?.firstname || user?.displayName?.split(' ')?.[0] || '';
@@ -387,11 +406,21 @@ export default function PublicView() {
     }
   };
 
+  const { total, categoryData, stateData } = useMemo(
+    () => buildDashboardCharts(donations),
+    [donations]
+  );
+
   const totalFormattedWithComma = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 0,
-  }).format(TOTAL_FUNDS);
+  }).format(total);
+
+  const categoryYMax = useMemo(() => {
+    const max = categoryData.reduce((m, d) => Math.max(m, d.value), 0);
+    return max > 0 ? Math.ceil(max * 1.1) : 100;
+  }, [categoryData]);
 
   return (
     <PageWrapper>
@@ -464,6 +493,12 @@ export default function PublicView() {
         )}
         {view === 'dashboard' ? (
           <ChartsSection>
+            {dashboardError ? (
+              <DashboardStatus role="alert">{dashboardError}</DashboardStatus>
+            ) : null}
+            {dashboardLoading ? (
+              <DashboardStatus>Loading dashboard…</DashboardStatus>
+            ) : null}
             <TotalFunds>
               <TotalFundsLabel>Total Funds</TotalFundsLabel>
               <TotalFundsAmount>{totalFormattedWithComma}</TotalFundsAmount>
@@ -472,9 +507,12 @@ export default function PublicView() {
             <ChartsGrid>
               <ChartCard>
                 <ChartTitle>Fund Breakdown By Category</ChartTitle>
+                {!dashboardLoading && categoryData.length === 0 ? (
+                  <DashboardStatus>No donation data yet.</DashboardStatus>
+                ) : null}
                 <ResponsiveContainer width="100%" height={420}>
                   <BarChart
-                    data={CategoryData}
+                    data={categoryData}
                     margin={{ top: 12, right: 12, left: 4, bottom: 0 }}
                   >
                     <CartesianGrid
@@ -496,8 +534,7 @@ export default function PublicView() {
                       tickMargin={12}
                     />
                     <YAxis
-                      domain={[0, 100]}
-                      ticks={[0, 20, 40, 60, 80, 100]}
+                      domain={[0, categoryYMax]}
                       tick={{
                         fill: '#4a5568',
                         fontSize: 12,
@@ -519,7 +556,7 @@ export default function PublicView() {
                       cursor={{ fill: 'rgba(0,0,0,0.02)' }}
                     />
                     <Bar dataKey="value" radius={[8, 8, 0, 0]} maxBarSize={80}>
-                      {CategoryData.map((entry, index) => (
+                      {categoryData.map((entry, index) => (
                         <Cell
                           key={`cell-${index}`}
                           fill={entry.fill}
@@ -533,10 +570,13 @@ export default function PublicView() {
 
               <ChartCard>
                 <ChartTitle>Fund Breakdown By State</ChartTitle>
+                {!dashboardLoading && stateData.length === 0 ? (
+                  <DashboardStatus>No donation data yet.</DashboardStatus>
+                ) : null}
                 <ResponsiveContainer width="100%" height={420}>
                   <PieChart margin={{ right: 100 }}>
                     <Pie
-                      data={StateData}
+                      data={stateData}
                       cx="42%"
                       cy="50%"
                       innerRadius={90}
@@ -565,7 +605,7 @@ export default function PublicView() {
                         ) : null
                       }
                     >
-                      {StateData.map((entry, index) => (
+                      {stateData.map((entry, index) => (
                         <Cell
                           key={`cell-${index}`}
                           fill={entry.fill}

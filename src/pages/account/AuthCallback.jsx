@@ -4,6 +4,7 @@ import { getRedirectResult } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 
+import { buildApiUrl } from '@/common/utils/apiUrl';
 import { auth } from '@/firebase-config';
 
 const Container = styled.div`
@@ -36,7 +37,7 @@ export default function AuthCallback() {
         const idToken = await result.user.getIdToken();
 
         const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/auth/token`,
+          buildApiUrl('/auth/token'),
           {
             method: 'POST',
             credentials: 'include',

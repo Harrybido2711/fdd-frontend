@@ -148,7 +148,7 @@ export default function NavBar() {
           Dashboard
         </StyledNavLink>
         <FundEntriesAnchor href="/#staff-admin">Fund entries</FundEntriesAnchor>
-        <StyledNavLink to="/app/file-upload">File Upload</StyledNavLink>
+        <StyledNavLink to="/app/file-upload">Import / Export</StyledNavLink>
       </NavLinks>
 
       <RightArea>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 
 import { useNavigate } from 'react-router-dom';
 
+import { buildApiUrl } from '@/common/utils/apiUrl';
 import GoogleButton from '@/common/components/atoms/GoogleButton';
 import { Form, FormTitle } from '@/common/components/form/Form';
 import { Input } from '@/common/components/form/Input';
@@ -65,7 +66,7 @@ export default function SignUp() {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/auth/signup`,
+        buildApiUrl('/auth/signup'),
         {
           method: 'POST',
           headers: {
