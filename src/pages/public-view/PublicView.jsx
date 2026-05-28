@@ -513,7 +513,8 @@ export default function PublicView() {
                 <ResponsiveContainer width="100%" height={420}>
                   <BarChart
                     data={categoryData}
-                    margin={{ top: 12, right: 12, left: 4, bottom: 0 }}
+                    // Give Y-axis labels enough room so digits aren't clipped.
+                    margin={{ top: 12, right: 12, left: 5, bottom: 0 }}
                   >
                     <CartesianGrid
                       strokeDasharray="0"
@@ -544,7 +545,7 @@ export default function PublicView() {
                       axisLine={false}
                       tickLine={false}
                       tickMargin={4}
-                      width={36}
+                      width={64}
                     />
                     <Tooltip
                       contentStyle={{
