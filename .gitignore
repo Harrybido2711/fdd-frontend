@@ -27,5 +27,5 @@ dist-ssr
 .env.example
 .env.production
 .firebase/hosting.ZGlzdA.cache
-.env.example
-.env.example
+.firebase/
+build/
