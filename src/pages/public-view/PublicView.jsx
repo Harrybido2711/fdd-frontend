@@ -426,10 +426,12 @@ export default function PublicView() {
     <PageWrapper>
       <Header>
         <HeaderLeft>
-          <LogoImg
-            src="/rsae-logo.png"
-            alt="Reparations Stakeholders Authority Evanston"
-          />
+          <a href="https://rsaevanston.org/" target="_blank" rel="noopener noreferrer">
+            <LogoImg
+              src="/rsae-logo.png"
+              alt="Reparations Stakeholders Authority Evanston"
+            />
+          </a>
           {isLoading ? null : user ? (
             <MenuButtons>
               <MenuButton

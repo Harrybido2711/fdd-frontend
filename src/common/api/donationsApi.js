@@ -31,6 +31,7 @@ async function apiFetch(url, options) {
 const UPLOAD_PATH = '/api/donations/upload';
 
 export async function fetchDonations() {
+  console.log(buildApiUrl("/api"));
   const response = await apiFetch(buildApiUrl('/api/donations'), {
     headers: await authHeaders(),
   });

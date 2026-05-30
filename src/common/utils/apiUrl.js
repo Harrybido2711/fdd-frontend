@@ -4,11 +4,8 @@
  * - Production: VITE_BACKEND_URL must be your deployed API (not localhost).
  */
 export function getApiBase() {
-  if (import.meta.env.DEV) {
-    return '';
-  }
   const base = import.meta.env.VITE_BACKEND_URL || '';
-  return String(base).replace(/\/$/, '');
+  return base.replace(/\/$/, '');
 }
 
 export function buildApiUrl(path) {
